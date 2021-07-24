@@ -28,10 +28,10 @@ public class InsertSqlQuery implements SqlQuery {
         InsertSqlQuery result = new InsertSqlQuery(this.query.trim() + "(");
 
         for (int i = 0; i < fields.length - 1; i++) {
-            result = new InsertSqlQuery(result + fields[i] + ", ");
+            result = new InsertSqlQuery(result.query.trim() + fields[i] + ", ");
         }
 
-        return new InsertSqlQuery(result + fields[fields.length - 1] + ")");
+        return new InsertSqlQuery(result.query.trim() + fields[fields.length - 1] + ")");
     }
 
     public final InsertSqlQuery values(final String... values) {
@@ -42,10 +42,10 @@ public class InsertSqlQuery implements SqlQuery {
         InsertSqlQuery result = new InsertSqlQuery(this.query.trim() + " VALUES ");
 
         for (int i = 0; i < values.length - 1; i++) {
-            result = new InsertSqlQuery(result + "(" + values[i] + "), ");
+            result = new InsertSqlQuery(result.query.trim() + "(" + values[i] + "), ");
         }
 
-        return new InsertSqlQuery(result + "(" + values[values.length - 1] + ")");
+        return new InsertSqlQuery(result.query.trim() + "(" + values[values.length - 1] + ")");
     }
 
     public final InsertSqlQuery where(final String statement) {
@@ -58,7 +58,7 @@ public class InsertSqlQuery implements SqlQuery {
 
     @Override
     public String toString() {
-        return create();
+        throw new UnsupportedOperationException();
     }
 
     @Override

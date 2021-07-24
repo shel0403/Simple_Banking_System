@@ -1,5 +1,6 @@
 package banking.sql;
 
+
 public class DeleteSqlQuery implements SqlQuery{
 
     private final String query;
@@ -14,7 +15,7 @@ public class DeleteSqlQuery implements SqlQuery{
 
     public final DeleteSqlQuery from(final String tableName) {
         if (tableName == null) {
-            throw new IllegalArgumentException("Incorrect argument!");
+            throw new IllegalArgumentException();
         }
 
         return new DeleteSqlQuery(this.query.trim() + " " + tableName + " ");
@@ -22,7 +23,7 @@ public class DeleteSqlQuery implements SqlQuery{
 
     public final DeleteSqlQuery where(final String statement) {
         if (statement == null) {
-            throw new IllegalArgumentException("Incorrect argument!");
+            throw new IllegalArgumentException();
         }
 
         return new DeleteSqlQuery(this.query.trim() + " WHERE " + statement + " ");
@@ -30,7 +31,7 @@ public class DeleteSqlQuery implements SqlQuery{
 
     @Override
     public String toString() {
-        return create();
+        throw new UnsupportedOperationException();
     }
 
     @Override

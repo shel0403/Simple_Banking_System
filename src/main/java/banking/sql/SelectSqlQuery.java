@@ -20,10 +20,24 @@ public class SelectSqlQuery implements SqlQuery{
         SelectSqlQuery result = new SelectSqlQuery(this.query);
 
         for (int i = 0; i < query.length - 1; i++) {
-            result = new SelectSqlQuery(result + query[i] + ", ");
+            result = new SelectSqlQuery(result.query.trim() + query[i] + ", ");
         }
 
-        return new SelectSqlQuery(result + query[query.length - 1] + " ");
+        return new SelectSqlQuery(result.query.trim() + query[query.length - 1] + " ");
+    }
+
+    public final SelectSqlQuery fields(final String... fields) {
+        if (fields == null) {
+            throw new IllegalArgumentException("Incorrect argument!");
+        }
+
+        SelectSqlQuery result = new SelectSqlQuery(this.query.trim());
+
+        for (int i = 0; i < fields.length - 1; i++) {
+            result = new SelectSqlQuery(result.query.trim() + " " + fields[i] + ",");
+        }
+
+        return new SelectSqlQuery(result.query.trim() + fields[fields.length - 1] + " ");
     }
 
     public final SelectSqlQuery from(final String table) {
@@ -44,7 +58,7 @@ public class SelectSqlQuery implements SqlQuery{
 
     @Override
     public String toString() {
-        return create();
+        throw new UnsupportedOperationException();
     }
 
     @Override

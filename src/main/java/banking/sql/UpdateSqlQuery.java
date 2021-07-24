@@ -28,10 +28,10 @@ public class UpdateSqlQuery implements SqlQuery{
         UpdateSqlQuery result = new UpdateSqlQuery(this.query.trim() + " SET ");
 
         for (int i = 0; i < values.length - 1; i++) {
-            result = new UpdateSqlQuery(result + values[i] + ", ");
+            result = new UpdateSqlQuery(result.query.trim() + " " + values[i] + ",");
         }
 
-        return new UpdateSqlQuery(result + values[values.length - 1] + " ");
+        return new UpdateSqlQuery(result.query.trim() + values[values.length - 1] + " ");
     }
 
     public final UpdateSqlQuery where(final String statement) {
@@ -44,7 +44,7 @@ public class UpdateSqlQuery implements SqlQuery{
 
     @Override
     public String toString() {
-        return create();
+        throw new UnsupportedOperationException();
     }
 
     @Override

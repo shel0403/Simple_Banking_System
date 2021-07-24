@@ -5,27 +5,73 @@ import banking.account.Balance;
 import banking.account.Customer;
 import banking.card.Card;
 import banking.card.CardNumber;
+import banking.card.Cards;
 import banking.card.PinCode;
 import banking.sql.*;
 
 import java.sql.*;
 import java.time.LocalDate;
+import java.time.Month;
+import java.time.ZoneId;
 import java.util.Optional;
 
 public final class DataBase {
 
     private final String DATA_BASE_URL;
+    private final String USER_NAME = "root";
+    private final String PASSWORD = "3Mc6_I_P";
 
     public DataBase(String name) {
         if (name == null || name.isEmpty()) {
             throw new IllegalArgumentException("Incorrect database name!");
         }
 
-        String dataBaseFolder = "src\\main\\resources\\";
-        String dataBaseAddress = dataBaseFolder + name;
-        String jdbc = "jdbc:sqlite:";
+        DATA_BASE_URL = String.format("jdbc:mysql://localhost:3306/%s", name);
+    }
 
-        DATA_BASE_URL = jdbc +dataBaseAddress;
+    public final void init() {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException("Cannot find the driver in the classpath!", e);
+        }
+
+        try (Connection connection = DriverManager.getConnection(DATA_BASE_URL, USER_NAME, PASSWORD)) {
+            try (Statement statement = connection.createStatement()) {
+                final String createDatabaseQuery = new CreateSqlQuery()
+                        .databaseIfNotExists("banking")
+                        .create();
+
+                final String createCardTableQuery = new CreateSqlQuery()
+                        .tableIfNotExists("card")
+                        .fields(
+                                "id INTEGER NOT NULL",
+                                "number TEXT NOT NULL",
+                                "pin TEXT NOT NULL",
+                                "balance INTEGER NOT NULL"
+                        )
+                        .create();
+
+                final String createCustomerTableQuery = new CreateSqlQuery()
+                        .tableIfNotExists("customer")
+                        .fields(
+                                "id INTEGER NOT NULL",
+                                "first_name VARCHAR(32) NOT NULL",
+                                "middle_name VARCHAR(32)",
+                                "last_name VARCHAR(32) NOT NULL",
+                                "birth_date DATE"
+                        )
+                        .create();
+
+                statement.executeUpdate(createDatabaseQuery);
+                statement.executeUpdate(createCardTableQuery);
+                statement.executeUpdate(createCustomerTableQuery);
+            } catch (SQLException exception) {
+                throw new IllegalStateException("Cannot connect the database!", exception);
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Cannot connect the database!", exception);
+        }
     }
 
     public final void insert(final Account account) {
@@ -33,28 +79,29 @@ public final class DataBase {
             throw new IllegalArgumentException();
         }
 
-        try (Connection connection = DriverManager.getConnection(DATA_BASE_URL)) {
+        try (Connection connection = DriverManager.getConnection(DATA_BASE_URL, USER_NAME, PASSWORD)) {
             if (connection == null) {
                 throw new SQLException();
             }
 
-            long id = Long.parseLong(account.getId());
-            String number = account.getCard().getCardNumber().toString();
-            String pin = account.getCard().getPinCode().toString();
-            long balance = account.getBalance().get();
-            String firstName = account.getCustomer().getFirstName();
-            String secondName = account.getCustomer().getSecondName();
-            String lastName = account.getCustomer().getLastName();
-            LocalDate birthDate = account.getCustomer().getBirthDate();
+            final long id = Long.parseLong(account.getId());
+            final String number = account.getCard().getCardNumber().toString();
+            final String pin = account.getCard().getPinCode().toString();
+            final long balance = account.getBalance().get();
+            final String firstName = account.getCustomer().getFirstName();
+            final String secondName = account.getCustomer().getSecondName();
+            final String lastName = account.getCustomer().getLastName();
+            final LocalDate birthDate = account.getCustomer().getBirthDate();
 
             final String cardQuery = new InsertSqlQuery()
                     .into("card")
                     .fields("id", "number", "pin", "balance")
                     .values("?, ?, ?, ?")
                     .create();
+
             final String customerQuery = new InsertSqlQuery()
                     .into("customer")
-                    .fields("id", "first_name", "second_name", "last_name", "birth_date")
+                    .fields("id", "first_name", "middle_name", "last_name", "birth_date")
                     .values("?, ?, ?, ?, ?")
                     .create();
 
@@ -71,7 +118,7 @@ public final class DataBase {
                 customerStatement.setObject(2, firstName);
                 customerStatement.setObject(3, secondName);
                 customerStatement.setObject(4, lastName);
-                customerStatement.setObject(5, birthDate.toString());
+                customerStatement.setObject(5, java.sql.Date.valueOf(birthDate));
 
                 customerStatement.executeUpdate();
             }
@@ -85,15 +132,18 @@ public final class DataBase {
             throw new IllegalArgumentException("Incorrect argument");
         }
 
-        try (Connection connection = DriverManager.getConnection(DATA_BASE_URL)) {
+        try (Connection connection = DriverManager.getConnection(DATA_BASE_URL, USER_NAME, PASSWORD)) {
             if (connection == null) {
                 throw new SQLException();
             }
+
+            final long id = Long.parseLong(account.getId());
 
             final String cardQuery = new DeleteSqlQuery()
                     .from("card")
                     .where("id = ?")
                     .create();
+
             final String customerQuery = new DeleteSqlQuery()
                     .from("customer")
                     .where("id = ?")
@@ -136,6 +186,7 @@ public final class DataBase {
         return getAccount(cardNumber.getAccountId());
     }
 
+    // FIXME: 7/24/2021
     public final Optional<Account> getAccount(final String accountId) {
         if (accountId == null) {
             throw new IllegalArgumentException("Incorrect argument!");
@@ -146,55 +197,64 @@ public final class DataBase {
         try {
             long id = Long.parseLong(accountId);
 
-            try (Connection connection = DriverManager.getConnection(DATA_BASE_URL)) {
+            long currentId;
+            String number;
+            String pin;
+            long balance;
+            String firstName;
+            String secondName;
+            String lastName;
+            LocalDate birthDate;
+
+            try (Connection connection = DriverManager.getConnection(DATA_BASE_URL, USER_NAME, PASSWORD)) {
                 if(connection == null) {
                     throw new SQLException();
                 }
 
-                String cardQuery = new SelectSqlQuery()
+                final String cardQuery = new SelectSqlQuery()
                         .select("*")
                         .from("card")
                         .where(String.format("id = %d", id))
                         .create();
-                String customerQuery = new SelectSqlQuery()
+
+                final String customerQuery = new SelectSqlQuery()
                         .select("*")
                         .from("customer")
                         .where(String.format("id = %d", id))
                         .create();
 
-                try (Statement cardStatement = connection.createStatement();
-                        Statement customerStatement = connection.createStatement();
-                        ResultSet cardResultSet = cardStatement.executeQuery(cardQuery);
-                        ResultSet customerResultSet = customerStatement.executeQuery(customerQuery)) {
-                    long currentId;
-                    String number;
-                    String pin;
-                    long balance;
-                    String firstName;
-                    String secondName;
-                    String lastName;
-                    LocalDate birthDate;
-
-                    while (cardResultSet.next()) {
-                        currentId = cardResultSet.getLong("id");
-                        number = cardResultSet.getString("number");
-                        pin = cardResultSet.getString("pin");
-                        balance = cardResultSet.getLong("balance");
-                        Card card = new Card(new CardNumber(number, true), new PinCode(pin));
-
-                        firstName = customerResultSet.getString("first_name");
-                        secondName = customerResultSet.getString("second_name");
-                        lastName = customerResultSet.getString("last_name");
-                        birthDate = LocalDate.parse(customerResultSet.getString("birth_date"));
-
-                        Customer customer = new Customer(firstName, secondName, lastName, birthDate);
-
-                        if (id == currentId) {
-                            result = Optional.of(new Account(customer, card, new Balance(balance)));
-                        }
+                try (Statement statement = connection.createStatement()) {
+                    try (ResultSet resultSet = statement.executeQuery(cardQuery)) {
+                        currentId = resultSet.getLong("id");
+                        number = resultSet.getString("number");
+                        pin = resultSet.getString("pin");
+                        balance = resultSet.getLong("balance");
+                    } catch (SQLException exception) {
+                        throw new IllegalStateException("SQL exception!", exception);
                     }
-                } catch (Exception exception) {
-                    throw new IllegalStateException(exception);
+                } catch (SQLException exception) {
+                    throw new IllegalStateException("SQL exception!", exception);
+                }
+
+                try (Statement statement = connection.createStatement()) {
+                    try (ResultSet resultSet = statement.executeQuery(customerQuery)) {
+                        firstName = resultSet.getString("first_name");
+                        secondName = resultSet.getString("middle_name");
+                        lastName = resultSet.getString("last_name");
+                        birthDate = new java.util.Date(resultSet.getDate("birth_date").getTime())
+                                .toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                    } catch (SQLException exception) {
+                        throw new IllegalStateException("SQL exception!", exception);
+                    }
+                } catch (SQLException exception) {
+                    throw new IllegalStateException("SQL exception!", exception);
+                }
+
+                Card card = new Card(new CardNumber(number, true), new PinCode(pin));
+                Customer customer = new Customer(firstName, secondName, lastName, birthDate);
+
+                if (id == currentId) {
+                    result = Optional.of(new Account(customer, card, new Balance(balance)));
                 }
             } catch (SQLException exception) {
                 System.err.println("Connection's failed!");
@@ -211,7 +271,7 @@ public final class DataBase {
             throw new IllegalArgumentException("Incorrect argument!");
         }
 
-        try (Connection connection = DriverManager.getConnection(DATA_BASE_URL)) {
+        try (Connection connection = DriverManager.getConnection(DATA_BASE_URL, USER_NAME, PASSWORD)) {
             final String query = new UpdateSqlQuery()
                     .table(tableName)
                     .set(String.format("%s = %s", fieldName, newValue))
@@ -366,5 +426,32 @@ public final class DataBase {
         }
 
         return count;
+    }
+
+    // FIXME: 7/23/2021 DELETE!!!
+    public static void main(String[] args) throws InterruptedException {
+        DataBase dataBase = new DataBase("banking");
+
+        try {
+            dataBase.init();
+        } catch (IllegalStateException exception) {
+            System.err.println(exception.getMessage());
+        }
+
+        Customer customer = new Customer("Denis", "Michaylovich", "Shelest", LocalDate.of(1984, Month.MARCH, 4));
+        PinCode pin = new PinCode("3454");
+        Card card = new Card(Cards.generateRandomCardNumber(true), pin);
+        Balance balance = new Balance(0L);
+        Account account = new Account(customer, card, balance);
+
+        dataBase.insert(account);
+
+        Thread.sleep(10000);
+
+        System.out.println(dataBase.getAccount(account.getId()).orElseThrow(IllegalStateException::new));
+
+        Thread.sleep(10000);
+
+        dataBase.delete(account);
     }
 }
